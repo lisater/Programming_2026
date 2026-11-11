@@ -1,55 +1,51 @@
-def get_currencies(currencies_ids_lst: list) -> list:
-    import requests
-    from xml.etree import ElementTree as ET  # TODO 1: Исследовать самостоятельно есть ли более оптимальная библиотека для парсинга XML или
-
-    # посмотреть есть ли возможность использовать у ЦБ другой API для получения json изначально
-
-    cur_res_str = requests.get('http://www.cbr.ru/scripts/XML_daily.asp')
-    result = []
-
-    root = ET.fromstring(cur_res_str.content)
-    valutes = root.findall(
-        "Valute"
-    ) 
-    for _v in valutes:
-        valute_id = _v.get('ID')
-        valute = {}
-        if (str(valute_id) in currencies_ids_lst):
-            valute_cur_name, valute_cur_val = _v.find('Name').text, _v.find(
-                'Value').text
-            valute_charcode = _v.find('CharCode').text
-            valute[valute_charcode] = (valute_cur_name, valute_cur_val)
-            result.append(valute)
-
-    return result
+import time
 
 
-class CurrenciesLst():
+class SingletonMeta(type):
+    """Метакласс для шаблона "одиночка""""
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            instance = super().__call__(*args, **kwargs)
+            cls._instances[cls] = instance
+        return cls._instances[cls]
+
+
+class CurrenciesLst(metaclass=SingletonMeta):
+    """Класс для работы с курсами валют ЦБ РФ."""
 
     def __init__(self):
+        if not hasattr(self, '_initialized'):
+            self.__cur_lst = [
+                {'GBP': ('Фунт стерлингов Соединенного королевства', '113,2069')},
+                {'KZT': ('Казахстанских тенге', '19,8264')},
+                {'TRY': ('Турецких лир', '33,1224')}
+            ]
+            self.__last_request_time = 0.0
+            self._initialized = True
 
-        self.__cur_lst = [{
-            'GBP': ('Фунт стерлингов Соединенного королевства', '113,2069')
-        }, {
-            'KZT': ('Казахстанских тенге', '19,8264')
-        }, {
-            'TRY': ('Турецких лир', '33,1224')
-        }]
+    @property
+    def cur_lst(self):
+        return self.__cur_lst
+
+    @cur_lst.setter
+    def cur_lst(self, value):
+        self.__cur_lst = value
+
+    @property
+    def last_request_time(self):
+        return self.__last_request_time
+
+    @last_request_time.setter
+    def last_request_time(self, value):
+        self.__last_request_time = value
 
     def visualize_currencies(self):
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots()
-        currencies = []
-        for el in self.__cur_lst:
-            currencies.append(str(el.keys()))
-
-        print(currencies)
+        pass
 
 
-        
 if __name__ == '__main__':
-
-    res = get_currencies(['R01035', 'R01335', 'R01700J'])
-    if res:
-        print(get_currencies(['R01035', 'R01335', 'R01700J']))
+    obj1 = CurrenciesLst()
+    obj2 = CurrenciesLst()
+    print(obj1 is obj2)  
