@@ -26,6 +26,10 @@ class CurrenciesLst(metaclass=SingletonMeta):
             self.__min_interval = min_interval
             self._initialized = True
 
+    def __del__(self):
+        self.__cur_lst = []
+        self.__last_request_time = 0.0
+
     @property
     def cur_lst(self):
         return self.__cur_lst
@@ -52,7 +56,7 @@ class CurrenciesLst(metaclass=SingletonMeta):
 
     @staticmethod
     def _split_value(value_str: str):
-        """Разбивает '113,2069' на ('113', '2069')."""
+        """Функция которая разбивает валюту на целую и дробную часть"""
         value_str = value_str.replace(' ', '')
         if ',' in value_str:
             int_part, frac_part = value_str.split(',', 1)
@@ -71,9 +75,12 @@ class CurrenciesLst(metaclass=SingletonMeta):
         self._throttle()
 
         response = requests.get(self.CBR_URL)
+        response.raise_for_status()
         self.__last_request_time = time.time()
 
         result = []
+        found_ids = set()
+
         root = ET.fromstring(response.content)
         for _v in root.findall('Valute'):
             valute_id = _v.get('ID')
@@ -103,16 +110,46 @@ class CurrenciesLst(metaclass=SingletonMeta):
             else:
                 result.append({charcode: (name, (int_part, frac_part))})
 
+            found_ids.add(valute_id)
+
+        for req_id in currencies_ids_lst:
+            if req_id not in found_ids:
+                result.append({req_id: None})
+
         self.__cur_lst = result
         return result
 
-    def visualize_currencies(self):
-        pass
+    def visualize_currencies(self, filename: str = 'currencies.jpg'):
+        """Функция котрая строит график курсов и сохраняет в файл."""
+        import matplotlib
+        matplotlib.use('Agg') 
+        import matplotlib.pyplot as plt
+
+        labels = []
+        values = []
+        for item in self.__cur_lst:
+            for charcode, data in item.items():
+                if data is None:
+                    continue
+                name, (int_part, frac_part) = data[0], data[1]
+                labels.append(charcode)
+                values.append(int(int_part))
+
+        if not labels:
+            print("Нет данных для визуализации.")
+            return
+
+        fig, ax = plt.subplots()
+        ax.bar(labels, values, color='tab:blue')
+        ax.set_ylabel('Курс (целая часть, руб.)')
+        ax.set_title('Курсы валют ЦБ РФ')
+        plt.savefig(filename)
+        plt.close(fig)
 
 
 if __name__ == '__main__':
     currencies = CurrenciesLst()
-    ids = ['R01035', 'R01335', 'R01700J']  # GBP, KZT, TRY
 
-    print(currencies.fetch_currencies(ids))
-    print(currencies.fetch_currencies(ids))
+    ids = ['R01035', 'R01335', 'R01700J']  # GBP, KZT, TRY
+    print("Курсы:", currencies.fetch_currencies(ids))
+    currencies.visualize_currencies()
