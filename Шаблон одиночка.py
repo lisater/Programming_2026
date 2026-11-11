@@ -1,8 +1,10 @@
 import time
+import requests
+from xml.etree import ElementTree as ET
 
 
 class SingletonMeta(type):
-    """Метакласс для шаблона "одиночка""""
+    """Метакласс для шаблона "одиночка"."""
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -15,14 +17,13 @@ class SingletonMeta(type):
 class CurrenciesLst(metaclass=SingletonMeta):
     """Класс для работы с курсами валют ЦБ РФ."""
 
-    def __init__(self):
+    CBR_URL = 'http://www.cbr.ru/scripts/XML_daily.asp'
+
+    def __init__(self, min_interval: float = 1.0):
         if not hasattr(self, '_initialized'):
-            self.__cur_lst = [
-                {'GBP': ('Фунт стерлингов Соединенного королевства', '113,2069')},
-                {'KZT': ('Казахстанских тенге', '19,8264')},
-                {'TRY': ('Турецких лир', '33,1224')}
-            ]
+            self.__cur_lst = []
             self.__last_request_time = 0.0
+            self.__min_interval = min_interval
             self._initialized = True
 
     @property
@@ -41,11 +42,77 @@ class CurrenciesLst(metaclass=SingletonMeta):
     def last_request_time(self, value):
         self.__last_request_time = value
 
+    @property
+    def min_interval(self):
+        return self.__min_interval
+
+    @min_interval.setter
+    def min_interval(self, value):
+        self.__min_interval = value
+
+    @staticmethod
+    def _split_value(value_str: str):
+        """Разбивает '113,2069' на ('113', '2069')."""
+        value_str = value_str.replace(' ', '')
+        if ',' in value_str:
+            int_part, frac_part = value_str.split(',', 1)
+        else:
+            int_part, frac_part = value_str, ''
+        return int_part, frac_part
+
+    def _throttle(self):
+        """Функция, контролирующая сколько прошло времени с запроса"""
+        elapsed = time.time() - self.__last_request_time
+        if elapsed < self.__min_interval:
+            time.sleep(self.__min_interval - elapsed)
+
+    def fetch_currencies(self, currencies_ids_lst: list) -> list:
+        """Функция, которая получает курсы валют с ЦБ РФ по списку ID."""
+        self._throttle()
+
+        response = requests.get(self.CBR_URL)
+        self.__last_request_time = time.time()
+
+        result = []
+        root = ET.fromstring(response.content)
+        for _v in root.findall('Valute'):
+            valute_id = _v.get('ID')
+            if valute_id not in currencies_ids_lst:
+                continue
+
+            name_el = _v.find('Name')
+            value_el = _v.find('Value')
+            charcode_el = _v.find('CharCode')
+            nominal_el = _v.find('Nominal')
+
+            if name_el is None or value_el is None or charcode_el is None:
+                continue
+
+            name = name_el.text
+            charcode = charcode_el.text
+            int_part, frac_part = self._split_value(value_el.text)
+
+            nominal = nominal_el.text if nominal_el is not None else '1'
+            try:
+                nominal_int = int(nominal)
+            except ValueError:
+                nominal_int = 1
+
+            if nominal_int != 1:
+                result.append({charcode: (name, (int_part, frac_part), nominal_int)})
+            else:
+                result.append({charcode: (name, (int_part, frac_part))})
+
+        self.__cur_lst = result
+        return result
+
     def visualize_currencies(self):
         pass
 
 
 if __name__ == '__main__':
-    obj1 = CurrenciesLst()
-    obj2 = CurrenciesLst()
-    print(obj1 is obj2)  
+    currencies = CurrenciesLst()
+    ids = ['R01035', 'R01335', 'R01700J']  # GBP, KZT, TRY
+
+    print(currencies.fetch_currencies(ids))
+    print(currencies.fetch_currencies(ids))
