@@ -10,8 +10,7 @@ def get_currencies(currencies_ids_lst: list) -> list:
     root = ET.fromstring(cur_res_str.content)
     valutes = root.findall(
         "Valute"
-    )  # исследовать, есть ли отдельный метод получения валют с опреденным id
-    # если да, упростить алгоритм ниже
+    ) 
     for _v in valutes:
         valute_id = _v.get('ID')
         valute = {}
@@ -46,22 +45,7 @@ class CurrenciesLst():
             currencies.append(str(el.keys()))
 
         print(currencies)
-        # fruits = ['apple', 'blueberry', 'cherry', 'orange']
-        # counts = [40, 100, 30, 55]
-        # bar_labels = ['red', 'blue', '_red', 'orange']
-        # bar_colors = ['tab:red', 'tab:blue', 'tab:red', 'tab:orange']
 
-        # ax.bar(fruits, counts, label=bar_labels, color=bar_colors)
-
-        # ax.set_ylabel('fruit supply')
-        # ax.set_title('Fruit supply by kind and color')
-        # ax.legend(title='Fruit color')
-
-        # plt.show()
-
-        # обращается к атрибуту __cur_lst, преобразовывать значения курсов валют в нужный формат и выводить эти данные в файл
-
-        # self.__cur_lst
 
         
 if __name__ == '__main__':
