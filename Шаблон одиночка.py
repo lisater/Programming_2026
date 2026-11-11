@@ -1,3 +1,5 @@
+# Ccылка на README: https://github.com/lisater/Programming_2026/blob/main/README%20%D0%B4%D0%BB%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%D0%BE%D1%87%D0%BA%D0%B8.md
+
 import time
 import requests
 from xml.etree import ElementTree as ET
